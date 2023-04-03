@@ -15,16 +15,19 @@ model User {
   email     String        @unique
   name      String?
   password  String        @unique
-  isAdmin   Boolean
-  clientAppointments    Appointment[] @relation("ClientAppointments")
-  barberAppointments Appointment[] @relation("BarberAppointments")
+  role      UserRole      @default(USER)
+  appointments    Appointment[]
+  photo     String?
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 model Appointment {
   id        Int     @id @default(autoincrement())
   date      DateTime
-  clientId  Int
-  barberId  Int
-  client    User    @relation("ClientAppointments", fields: [clientId], references: [id])
-  barber    User    @relation("BarberAppointments", fields: [barberId], references: [id])
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id])
 }
