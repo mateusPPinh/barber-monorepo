@@ -5,23 +5,54 @@ import {
   Body,
   HttpException,
   HttpStatus,
-  Req,
-  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Patch,
+  Param,
 } from '@nestjs/common';
 import { UsersService } from '../user/user.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateUserDto } from '../dto/create-user.dto';
-import { Request } from 'express';
-import { AuthGuard } from '@nestjs/passport';
-
+import { editFileName, imageFileFilter } from '../utils/file-upload.utils';
+import { diskStorage } from 'multer';
+import * as path from 'path';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Patch(':id/photo')
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      storage: diskStorage({
+        destination: path.resolve(__dirname, '..', '..', 'uploads'),
+        filename: editFileName,
+      }),
+      fileFilter: imageFileFilter,
+    }),
+  )
+  async updatePhoto(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const photoPath = file.path.split('uploads')[1];
+    return this.usersService.updatePhoto(+id, photoPath);
+  }
 
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
+  @Post()
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      storage: diskStorage({
+        destination: path.resolve(__dirname, '..', '..', 'uploads'),
+        filename: editFileName,
+      }),
+      fileFilter: imageFileFilter,
+    }),
+  )
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     const existingUser = await this.usersService.findByEmail(

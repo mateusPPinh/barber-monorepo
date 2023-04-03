@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { User } from '@prisma/client';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class UsersService {
@@ -16,8 +17,13 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto) {
     const hashedPassword = await this.hashPassword(createUserDto.password);
+    const role = createUserDto.role || 'USER';
     return this.prisma.user.create({
-      data: { ...createUserDto, password: hashedPassword },
+      data: {
+        ...createUserDto,
+        password: hashedPassword,
+        role,
+      },
     });
   }
 
@@ -35,6 +41,19 @@ export class UsersService {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     return isPasswordValid ? user : null;
+  }
+
+  async updatePhoto(id: number, photoPath: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { photo: photoPath },
+    });
   }
 
   async findByEmail(email: string) {
