@@ -9,6 +9,7 @@ import {
   UploadedFile,
   Patch,
   Param,
+  Put,
 } from '@nestjs/common';
 import { UsersService } from '../user/user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -16,9 +17,27 @@ import { CreateUserDto } from '../dto/create-user.dto';
 import { editFileName, imageFileFilter } from '../utils/file-upload.utils';
 import { diskStorage } from 'multer';
 import * as path from 'path';
+import { UpdateUserDto } from 'src/dto/update-user.dto';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    const user = await this.usersService.findByEmail(updateUserDto.email);
+
+    if (user && user.id !== +id) {
+      throw new HttpException(
+        {
+          status: HttpStatus.CONFLICT,
+          error: 'User with this e-mail already exists.',
+        },
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    return this.usersService.updateUser(+id, updateUserDto);
+  }
 
   @Patch(':id/photo')
   @UseInterceptors(
