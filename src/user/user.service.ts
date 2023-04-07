@@ -5,7 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { User } from '@prisma/client';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { UpdateUserDto } from 'src/dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -30,6 +31,41 @@ export class UsersService {
   private async hashPassword(password: string): Promise<string> {
     const saltRounds = 10;
     return bcrypt.hash(password, saltRounds);
+  }
+
+  async updateUser(id: number, updateUserDto: UpdateUserDto) {
+    const { name, email, password, oldPassword } = updateUserDto;
+    const updatedUserData: any = {};
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (name) {
+      updatedUserData.name = name;
+    }
+    if (email) {
+      updatedUserData.email = email;
+    }
+    if (password) {
+      if (!oldPassword) {
+        throw new BadRequestException('Old password is required');
+      }
+
+      const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+      if (!isPasswordValid) {
+        throw new BadRequestException('Old password is incorrect');
+      }
+
+      const hashedPassword = await this.hashPassword(password);
+      updatedUserData.password = hashedPassword;
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: updatedUserData,
+    });
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
